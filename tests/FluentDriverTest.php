@@ -3,9 +3,13 @@
 namespace Tests;
 
 use Doctrine\Common\Persistence\Mapping\ClassMetadata;
+use Doctrine\DBAL\Connection;
+use Doctrine\ORM\Configuration;
+use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Mapping\Builder\ClassMetadataBuilder;
 use Doctrine\ORM\Mapping\ClassMetadataInfo;
 use Doctrine\ORM\Mapping\MappingException;
+use Doctrine\ORM\Tools\SchemaValidator;
 use LaravelDoctrine\Fluent\Builders\Builder;
 use LaravelDoctrine\Fluent\EntityMapping;
 use LaravelDoctrine\Fluent\Fluent;
@@ -228,6 +232,28 @@ class FluentDriverTest extends \PHPUnit_Framework_TestCase
 
         $driver->getMappers()->addMapper('fake', new EntityMapper($mapping));
         $driver->loadMetadataForClass('fake', new ClassMetadataInfo('fake'));
+    }
+
+    public function test_mapping_is_valid()
+    {
+        $fluent = new FluentDriver([
+            StubEntityMapping::class,
+            StubEmbeddableMapping::class,
+            StubMappedSuperClassMapping::class
+        ]);
+
+        $config = new Configuration();
+        $config->setMetadataDriverImpl($fluent);
+        $config->setProxyDir(sys_get_temp_dir());
+        $config->setProxyNamespace(__NAMESPACE__);
+
+        $entityManager = EntityManager::create(['url' => 'sqlite:///:memory:'], $config);
+
+        $schemaValidator = new SchemaValidator($entityManager);
+
+        $errors = $schemaValidator->validateMapping();
+
+        $this->assertEmpty($errors, 'Failed asserting there were no schema errors: ' . var_dump($errors));
     }
 }
 
